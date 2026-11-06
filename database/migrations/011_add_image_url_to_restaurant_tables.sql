@@ -1,0 +1,1 @@
+ ALTER TABLE restaurant_tables ADD COLUMN image_url TEXT;
