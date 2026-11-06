@@ -1,0 +1,37 @@
+   INSERT INTO menu_items (category_id, name, description, price, image_url) VALUES
+     -- Makanan
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Bakso Goreng',        'Bakso goreng renyah dengan saus sambal', 28000, 'bakso_goreng.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Burger',              'Burger daging sapi dengan keju dan sayur segar', 55000, 'burger.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Cumi Telur Asin',     'Cumi goreng dengan saus telur asin', 62000, 'cumi_telur_asin.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Fish and Chips',      'Ikan goreng tepung dengan kentang goreng', 58000, 'fish_and_chips.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Ikan Bakar',          'Ikan bakar bumbu khas dengan sambal', 65000, 'ikan_bakar.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Nasi Goreng Lobster', 'Nasi goreng dengan potongan lobster', 85000, 'nasi_goreng_lobster.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Salmon',              'Salmon panggang dengan saus lemon', 95000, 'salmon.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Spageti',             'Spageti dengan saus pilihan', 48000, 'spageti.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Steak',               'Steak daging sapi dengan saus lada hitam', 98000, 'steak.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Makanan'), 'Udang Mentega',       'Udang tumis saus mentega', 72000, 'udang_mentega.jpg'),
+     -- Minuman
+     ((SELECT id FROM menu_categories WHERE name = 'Minuman'), 'Es Cappuccino',       'Cappuccino dingin dengan susu', 25000, 'es_cappuccino.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Minuman'), 'Es Kopi Latte',       'Kopi latte dingin', 25000, 'es_kopi_latte.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Minuman'), 'Es Lemon Tea',        'Teh dingin dengan perasan lemon', 18000, 'es_lemon_tea.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Minuman'), 'Es Teh Berry',        'Teh dingin rasa berry', 20000, 'es_teh_berry.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Minuman'), 'Jus Alpukat',         'Jus alpukat dengan susu cokelat', 22000, 'jus_alpukat.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Minuman'), 'Jus Mangga',          'Jus mangga segar', 20000, 'jus_mangga.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Minuman'), 'Mojito Markisa',      'Minuman soda segar rasa markisa dan mint', 24000, 'mojito_markisa.jpg'),
+     -- Dessert
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Chocolate Mousse Cake',      'Kue mousse cokelat lembut', 38000, 'chocolate_mousse_cake.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Chocolate Truffle Cake',     'Kue cokelat truffle pekat', 40000, 'chocolate_truffle_cake.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Kiwi Lime Mini Cheesecakes', 'Cheesecake mini rasa kiwi dan jeruk nipis', 35000, 'kiwi_lime_cheesecake.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Lemon Charlotte',             'Charlotte lemon dengan mousse citrus', 42000, 'lemon_charlotte.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Pan & Co',                   'Dessert spesial restoran', 36000, 'pan_and_co.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Panna Cotta al Caramello',   'Panna cotta dengan saus karamel', 34000, 'panna_cotta.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Strawberry Pistachio Cheesecake Slice', 'Cheesecake stroberi dan pistachio', 40000, 'strawberry_pistachio_cheesecake.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Dessert'), 'Vanilla Custard Fruit Tartlet', 'Tart mini dengan custard vanila dan buah', 33000, 'vanilla_custard_tartlet.jpg'),
+     -- Paket
+     ((SELECT id FROM menu_categories WHERE name = 'Paket'), 'Paket 1', 'Isi paket sesuaikan', 120000, 'paket_1.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Paket'), 'Paket 2', 'Isi paket sesuaikan', 140000, 'paket_2.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Paket'), 'Paket 3', 'Isi paket sesuaikan', 160000, 'paket_3.jpg'),
+     ((SELECT id FROM menu_categories WHERE name = 'Paket'), 'Paket 4', 'Isi paket sesuaikan', 180000, 'paket_4.png'),
+     ((SELECT id FROM menu_categories WHERE name = 'Paket'), 'Paket 5', 'Isi paket sesuaikan', 200000, 'paket_5.png'),
+     ((SELECT id FROM menu_categories WHERE name = 'Paket'), 'Paket 6', 'Isi paket sesuaikan', 220000, 'paket_6.png'),
+     ((SELECT id FROM menu_categories WHERE name = 'Paket'), 'Paket 7', 'Isi paket sesuaikan', 250000, 'paket_7.png');
