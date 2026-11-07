@@ -1,0 +1,1 @@
+   ALTER TABLE promos ADD COLUMN image_url TEXT;
