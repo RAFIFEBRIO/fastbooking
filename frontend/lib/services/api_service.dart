@@ -56,6 +56,15 @@ class ApiService {
           await post('/auth/verify-otp', {'phone': phone, 'code': code}));
 
   // ---- Meja ----
-  static Future<List<dynamic>> getTables() async =>
-      (await get('/tables')) as List<dynamic>;
+  static Future<List<dynamic>> getTables({String? area}) async {
+    final path = area == null ? '/tables' : '/tables?area=${Uri.encodeQueryComponent(area)}';
+    return (await get(path)) as List<dynamic>;
+  }
+
+  // ---- Menu ----
+  static Future<List<dynamic>> getMenu({String? category}) async {
+    final path =
+        category == null ? '/menu' : '/menu?category=${Uri.encodeQueryComponent(category)}';
+    return (await get(path)) as List<dynamic>;
+  }
 }

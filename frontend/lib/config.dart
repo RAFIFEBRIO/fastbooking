@@ -13,4 +13,8 @@ class AppConfig {
   static String mejaImage(String file) => 'assets/images/meja/$file';
   static String menuImage(String file) => 'assets/images/menu/$file';
   static String paketImage(String file) => 'assets/images/paket/$file';
+
+  // Kategori Paket ada di folder paket, selain itu di folder menu
+  static String menuItemImage(String category, String file) =>
+      category == 'Paket' ? paketImage(file) : menuImage(file);
 }
