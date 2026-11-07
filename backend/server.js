@@ -11,6 +11,7 @@ app.use('/api/menu', require('./routes/menu'));
 app.use('/api/promos', require('./routes/promos'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reservations', require('./routes/reservations'));
+app.use('/api/payments', require('./routes/payments'));
 
 // Tes server dan koneksi database
 app.get('/api/health', async (req, res) => {
