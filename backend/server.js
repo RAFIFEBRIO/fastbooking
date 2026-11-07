@@ -8,7 +8,8 @@ app.use(cors());
 app.use(express.json());
 app.use('/api/tables', require('./routes/tables'));
 app.use('/api/menu', require('./routes/menu'));
-   app.use('/api/promos', require('./routes/promos'));
+app.use('/api/promos', require('./routes/promos'));
+app.use('/api/auth', require('./routes/auth'));
 
 // Tes server dan koneksi database
 app.get('/api/health', async (req, res) => {
