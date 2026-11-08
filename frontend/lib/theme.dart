@@ -25,18 +25,13 @@ TextStyle script(double size) =>
     GoogleFonts.sacramento(fontSize: size, color: AppColors.brownDark);
 
 ThemeData buildTheme() {
-  final base = ThemeData(
+  return ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
       seedColor: AppColors.brown,
       primary: AppColors.brown,
+      onSurface: AppColors.brownDark,
     ),
     scaffoldBackgroundColor: Colors.white,
-  );
-  return base.copyWith(
-    textTheme: GoogleFonts.plusJakartaSansTextTheme(base.textTheme).apply(
-      bodyColor: AppColors.brownDark,
-      displayColor: AppColors.brownDark,
-    ),
   );
 }
