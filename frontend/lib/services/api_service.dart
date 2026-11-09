@@ -61,6 +61,13 @@ class ApiService {
     return (await get(path)) as List<dynamic>;
   }
 
+  // Ketersediaan semua meja pada tanggal (YYYY-MM-DD) dan jam (HH:MM) tertentu
+  static Future<List<dynamic>> getAvailability(String date, String time) async {
+    final path = '/reservations/availability'
+        '?date=${Uri.encodeQueryComponent(date)}&time=${Uri.encodeQueryComponent(time)}';
+    return (await get(path)) as List<dynamic>;
+  }
+
   // ---- Menu ----
   static Future<List<dynamic>> getMenu({String? category}) async {
     final path =
