@@ -6,8 +6,8 @@ import '../config.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
-import '../widgets/common.dart';
 import '../widgets/responsive.dart';
+import 'reservation_page.dart';
 
 class BerandaTab extends StatefulWidget {
   final VoidCallback? onOpenNotifications;
@@ -188,8 +188,6 @@ class _BerandaTabState extends State<BerandaTab> {
                       );
                     }
 
-                    void book() => showComingSoon(context, 'Halaman reservasi meja');
-
                     // Desktop: grid 2 kolom dengan kartu berbingkai
                     if (cols == 2) {
                       const gap = 20.0;
@@ -204,7 +202,7 @@ class _BerandaTabState extends State<BerandaTab> {
                               for (final t in tables)
                                 SizedBox(
                                   width: cardW,
-                                  child: TableCard(table: t, boxed: true, onBook: book),
+                                  child: TableCard(table: t, boxed: true),
                                 ),
                             ],
                           ),
@@ -217,7 +215,7 @@ class _BerandaTabState extends State<BerandaTab> {
                       Column(
                         children: [
                           for (var i = 0; i < tables.length; i++) ...[
-                            TableCard(table: tables[i], onBook: book),
+                            TableCard(table: tables[i]),
                             if (i < tables.length - 1)
                               const Divider(height: 1, color: AppColors.border),
                           ],
@@ -417,12 +415,10 @@ class _PaketSliderState extends State<PaketSlider> {
 
 class TableCard extends StatelessWidget {
   final Map<String, dynamic> table;
-  final VoidCallback onBook;
   final bool boxed;
   const TableCard({
     super.key,
     required this.table,
-    required this.onBook,
     this.boxed = false,
   });
 
@@ -481,7 +477,9 @@ class TableCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               OutlinedButton(
-                onPressed: onBook,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => ReservationPage(table: table)),
+                ),
                 style: OutlinedButton.styleFrom(
                   shape: const StadiumBorder(),
                   side: const BorderSide(color: AppColors.border, width: 1.4),
