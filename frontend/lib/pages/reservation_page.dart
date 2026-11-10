@@ -6,6 +6,7 @@ import '../models/booking_draft.dart';
 import '../services/api_service.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
+import 'menu_page.dart';
 
 class ReservationPage extends StatefulWidget {
   final Map<String, dynamic> table;
@@ -114,9 +115,8 @@ class _ReservationPageState extends State<ReservationPage> {
       guests: _guests,
       notes: _notes.text.trim(),
     );
-    // Halaman pilih menu dibuat di langkah berikutnya
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${widget.table['name']} · ${draft.dateKey} · ${draft.label}')),
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => MenuPage(draft: draft)),
     );
   }
 
