@@ -3,6 +3,7 @@ import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/responsive.dart';
 import 'beranda_tab.dart';
+import 'menu_tab.dart';
 
 class _NavData {
   final IconData icon;
@@ -37,7 +38,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final pages = <Widget>[
       BerandaTab(onOpenNotifications: () => setState(() => _index = 2)),
-      _placeholder('Menu'),
+      MenuTab(onGoHome: () => setState(() => _index = 0)),
       _placeholder('Notifikasi'),
       _placeholder('Akun'),
     ];
