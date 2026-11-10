@@ -5,6 +5,15 @@ const authRequired = require('../middleware/auth');
 const router = express.Router();
 
 const METHODS = ['transfer', 'ovo', 'gopay', 'qris'];
+const HOLD_MINUTES = 15;
+
+async function expireStale() {
+  await pool.query(
+    `UPDATE reservations SET status = 'cancelled'
+     WHERE status = 'pending'
+       AND created_at < LOCALTIMESTAMP - INTERVAL '${HOLD_MINUTES} minutes'`
+  );
+}
 
 // Buat pembayaran untuk reservasi yang masih pending
 router.post('/', authRequired, async (req, res) => {
@@ -17,6 +26,7 @@ router.post('/', authRequired, async (req, res) => {
       return res.status(400).json({ message: `Metode harus salah satu dari: ${METHODS.join(', ')}` });
     }
 
+    await expireStale();
     const reservation = await pool.query(
       'SELECT * FROM reservations WHERE id = $1 AND user_id = $2',
       [reservation_id, req.user.id]
@@ -25,8 +35,14 @@ router.post('/', authRequired, async (req, res) => {
       return res.status(404).json({ message: 'Reservasi tidak ditemukan' });
     }
     const r = reservation.rows[0];
+    if (r.status === 'cancelled') {
+      return res.status(400).json({ message: 'Waktu pembayaran habis, silakan reservasi ulang' });
+    }
     if (r.status !== 'pending') {
       return res.status(400).json({ message: `Reservasi berstatus ${r.status}, tidak bisa dibayar` });
+    }
+    if (Number(r.total_amount) <= 0) {
+      return res.status(400).json({ message: 'Reservasi ini tidak memerlukan pembayaran' });
     }
 
     // Kalau sudah ada pembayaran pending, cukup ganti metodenya
@@ -61,6 +77,7 @@ router.post('/', authRequired, async (req, res) => {
 router.post('/:id/confirm', authRequired, async (req, res) => {
   const client = await pool.connect();
   try {
+    await expireStale();
     await client.query('BEGIN');
 
     const found = await client.query(
@@ -77,6 +94,10 @@ router.post('/:id/confirm', authRequired, async (req, res) => {
       return res.status(404).json({ message: 'Pembayaran tidak ditemukan' });
     }
     const row = found.rows[0];
+    if (row.reservation_status === 'cancelled') {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Waktu pembayaran habis, silakan reservasi ulang' });
+    }
     if (row.payment_status !== 'pending' || row.reservation_status !== 'pending') {
       await client.query('ROLLBACK');
       return res.status(400).json({ message: 'Pembayaran ini sudah diproses atau reservasi tidak bisa dibayar' });

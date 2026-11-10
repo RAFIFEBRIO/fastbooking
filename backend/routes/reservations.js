@@ -4,28 +4,46 @@ const authRequired = require('../middleware/auth');
 
 const router = express.Router();
 
+const HOLD_MINUTES = 15; // batas waktu pembayaran
+const FEE_RATE = 0.15; // pajak 10% + layanan 5%
+const VIP_MIN_ORDER = 500000; // minimal order meja VIP (sebelum pajak)
+
+// Reservasi pending yang melewati batas waktu otomatis dibatalkan
+async function expireStale(db = pool) {
+  await db.query(
+    `UPDATE reservations SET status = 'cancelled'
+     WHERE status = 'pending'
+       AND created_at < LOCALTIMESTAMP - INTERVAL '${HOLD_MINUTES} minutes'`
+  );
+}
+
 const SELECT_RESERVATION = `
   SELECT r.id, r.booking_code, r.table_id,
          t.name AS table_name, t.area, t.image_url AS table_image,
          to_char(r.reservation_date, 'YYYY-MM-DD') AS reservation_date,
          to_char(r.reservation_time, 'HH24:MI') AS reservation_time,
-         r.guest_count, r.notes, r.status, r.total_amount, r.created_at
+         r.guest_count, r.notes, r.status, r.total_amount, r.created_at,
+         GREATEST(0, EXTRACT(EPOCH FROM (r.created_at + INTERVAL '${HOLD_MINUTES} minutes' - LOCALTIMESTAMP))::int) AS expires_in
   FROM reservations r
   JOIN restaurant_tables t ON t.id = r.table_id`;
 
-// Ambil satu reservasi lengkap dengan daftar menunya
+// Ambil satu reservasi lengkap dengan daftar menu, subtotal, dan biaya
 async function getReservationDetail(id, userId) {
   const r = await pool.query(SELECT_RESERVATION + ' WHERE r.id = $1 AND r.user_id = $2', [id, userId]);
   if (r.rows.length === 0) return null;
   const items = await pool.query(
-    `SELECT ri.menu_item_id, m.name, m.image_url, ri.quantity, ri.price
+    `SELECT ri.menu_item_id, m.name, m.image_url, c.name AS category_name,
+            ri.quantity, ri.price, ri.note
      FROM reservation_items ri
      JOIN menu_items m ON m.id = ri.menu_item_id
+     JOIN menu_categories c ON c.id = m.category_id
      WHERE ri.reservation_id = $1
      ORDER BY ri.id`,
     [id]
   );
-  return { ...r.rows[0], items: items.rows };
+  const subtotal = items.rows.reduce((sum, i) => sum + Number(i.price) * i.quantity, 0);
+  const total = Number(r.rows[0].total_amount);
+  return { ...r.rows[0], items: items.rows, subtotal, fee: total - subtotal };
 }
 
 function makeBookingCode() {
@@ -42,6 +60,7 @@ router.get('/availability', async (req, res) => {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || !/^\d{2}:\d{2}$/.test(time || '')) {
       return res.status(400).json({ message: 'Format date (YYYY-MM-DD) dan time (HH:MM) wajib diisi' });
     }
+    await expireStale();
     const result = await pool.query(
       `SELECT t.*,
               NOT EXISTS (
@@ -77,6 +96,7 @@ router.post('/', authRequired, async (req, res) => {
 
   const client = await pool.connect();
   try {
+    await expireStale(client);
     await client.query('BEGIN');
 
     // Kunci baris meja supaya tidak ada dua reservasi bersamaan di meja yang sama
@@ -115,8 +135,7 @@ router.post('/', authRequired, async (req, res) => {
       return res.status(409).json({ message: 'Meja sudah dipesan pada waktu tersebut' });
     }
 
-    // Hitung total dari harga menu di database
-    let total = 0;
+    // Hitung subtotal dari harga menu di database
     const lines = [];
     for (const item of items) {
       const qty = parseInt(item.quantity, 10);
@@ -132,32 +151,58 @@ router.post('/', authRequired, async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(404).json({ message: `Menu dengan id ${item.menu_item_id} tidak tersedia` });
       }
-      const price = Number(menu.rows[0].price);
-      total += price * qty;
-      lines.push({ menu_item_id: menu.rows[0].id, quantity: qty, price });
+      const note = String(item.note || '').trim().slice(0, 200) || null;
+      lines.push({
+        menu_item_id: menu.rows[0].id,
+        quantity: qty,
+        price: Number(menu.rows[0].price),
+        note,
+      });
     }
+    const subtotal = lines.reduce((sum, l) => sum + l.price * l.quantity, 0);
+
+    // Meja VIP wajib minimal order
+    if (table.area === 'VIP' && subtotal < VIP_MIN_ORDER) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        message: `Meja VIP minimal order Rp ${VIP_MIN_ORDER.toLocaleString('id-ID')}`,
+      });
+    }
+
+    const fee = Math.round(subtotal * FEE_RATE);
+    const total = subtotal + fee;
+    // Tanpa pesanan menu tidak ada yang perlu dibayar, reservasi langsung terkonfirmasi
+    const status = total === 0 ? 'paid' : 'pending';
 
     const code = makeBookingCode();
     const inserted = await client.query(
       `INSERT INTO reservations
-         (booking_code, user_id, table_id, reservation_date, reservation_time, guest_count, notes, total_amount)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         (booking_code, user_id, table_id, reservation_date, reservation_time,
+          guest_count, notes, status, total_amount)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING id`,
-      [code, req.user.id, table_id, reservation_date, reservation_time, guest_count, notes || null, total]
+      [code, req.user.id, table_id, reservation_date, reservation_time,
+        guest_count, notes || null, status, total]
     );
     const reservationId = inserted.rows[0].id;
 
     for (const line of lines) {
       await client.query(
-        `INSERT INTO reservation_items (reservation_id, menu_item_id, quantity, price)
-         VALUES ($1, $2, $3, $4)`,
-        [reservationId, line.menu_item_id, line.quantity, line.price]
+        `INSERT INTO reservation_items (reservation_id, menu_item_id, quantity, price, note)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [reservationId, line.menu_item_id, line.quantity, line.price, line.note]
       );
     }
 
     await client.query(
       'INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)',
-      [req.user.id, 'Reservasi dibuat', `Reservasi ${code} untuk ${table.name} menunggu pembayaran.`]
+      [
+        req.user.id,
+        status === 'paid' ? 'Reservasi berhasil' : 'Reservasi dibuat',
+        status === 'paid'
+          ? `Reservasi ${code} untuk ${table.name} berhasil dikonfirmasi.`
+          : `Reservasi ${code} untuk ${table.name} menunggu pembayaran.`,
+      ]
     );
 
     await client.query('COMMIT');
@@ -174,6 +219,7 @@ router.post('/', authRequired, async (req, res) => {
 // Riwayat reservasi user: /api/reservations atau /api/reservations?status=paid
 router.get('/', authRequired, async (req, res) => {
   try {
+    await expireStale();
     const { status } = req.query;
     const result = status
       ? await pool.query(
@@ -216,6 +262,7 @@ router.patch('/:id/cancel', authRequired, async (req, res) => {
 // Detail satu reservasi
 router.get('/:id', authRequired, async (req, res) => {
   try {
+    await expireStale();
     const detail = await getReservationDetail(req.params.id, req.user.id);
     if (!detail) return res.status(404).json({ message: 'Reservasi tidak ditemukan' });
     res.json(detail);
