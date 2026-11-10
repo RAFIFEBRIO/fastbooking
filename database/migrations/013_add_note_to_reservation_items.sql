@@ -1,0 +1,1 @@
+ALTER TABLE reservation_items ADD COLUMN note TEXT;
