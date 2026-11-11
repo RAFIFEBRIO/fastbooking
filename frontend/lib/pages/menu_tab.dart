@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/cart.dart';
 import '../theme.dart';
-import '../utils/format.dart';
 import '../widgets/common.dart';
 import '../widgets/menu_browser.dart';
+import 'checkout_page.dart';
 
 class MenuTab extends StatefulWidget {
   final VoidCallback onGoHome;
@@ -24,9 +24,10 @@ class _MenuTabState extends State<MenuTab> {
   }
 
   void _viewOrder() {
-    // Checkout pesanan langsung dibuat di langkah berikutnya
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Pesanan ${_cart.count} item, total ${rupiah(_cart.total)}')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CheckoutPage(draft: null, cart: _cart),
+      ),
     );
   }
 
@@ -124,12 +125,7 @@ class _MenuTabState extends State<MenuTab> {
               _segmented(),
               if (_walkIn) ...[
                 Expanded(child: MenuBrowser(cart: _cart)),
-                CartBar(
-                  cart: _cart,
-                  emptyLabel: 'Belum ada pesanan',
-                  emptyAction: '',
-                  onTap: _viewOrder,
-                ),
+                CartBar(cart: _cart, onTap: _viewOrder),
               ] else
                 Expanded(child: _reservationInfo()),
             ],
