@@ -18,13 +18,16 @@ void goHome(BuildContext context) {
   Navigator.of(context).popUntil((r) => r.isFirst);
 }
 
-Future<void> showExpiredAndGoHome(BuildContext context) async {
+Future<void> showExpiredAndGoHome(
+  BuildContext context, {
+  String message = 'Reservasi dibatalkan. Silakan pilih meja dan reservasi ulang.',
+}) async {
   await showDialog<void>(
     context: context,
     barrierDismissible: false,
     builder: (ctx) => AlertDialog(
       title: const Text('Waktu pembayaran habis'),
-      content: const Text('Reservasi dibatalkan. Silakan pilih meja dan reservasi ulang.'),
+      content: Text(message),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(),

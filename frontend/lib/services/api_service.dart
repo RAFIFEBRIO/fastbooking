@@ -117,10 +117,35 @@ class ApiService {
   static Future<Map<String, dynamic>> cancelReservation(int id) async =>
       Map<String, dynamic>.from(await patch('/reservations/$id/cancel'));
 
-  // ---- Pembayaran ----
-  static Future<Map<String, dynamic>> createPayment(int reservationId, String method) async =>
+  // ---- Pesanan datang langsung ----
+  static Future<Map<String, dynamic>> createOrder({
+    String? tableLabel,
+    String? notes,
+    required List<Map<String, dynamic>> items,
+  }) async =>
+      Map<String, dynamic>.from(await post('/orders', {
+        if (tableLabel != null && tableLabel.isNotEmpty) 'table_label': tableLabel,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        'items': items,
+      }));
+
+  static Future<List<dynamic>> getOrders() async => (await get('/orders')) as List<dynamic>;
+
+  static Future<Map<String, dynamic>> getOrder(int id) async =>
+      Map<String, dynamic>.from(await get('/orders/$id'));
+
+  static Future<Map<String, dynamic>> cancelOrder(int id) async =>
+      Map<String, dynamic>.from(await patch('/orders/$id/cancel'));
+
+  // ---- Pembayaran (untuk reservasi atau pesanan) ----
+  static Future<Map<String, dynamic>> createPayment({
+    int? reservationId,
+    int? orderId,
+    required String method,
+  }) async =>
       Map<String, dynamic>.from(await post('/payments', {
-        'reservation_id': reservationId,
+        if (reservationId != null) 'reservation_id': reservationId,
+        if (orderId != null) 'order_id': orderId,
         'method': method,
       }));
 
