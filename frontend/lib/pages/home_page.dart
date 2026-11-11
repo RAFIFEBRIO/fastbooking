@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import '../theme.dart';
 import '../widgets/common.dart';
 import '../widgets/responsive.dart';
+import 'account_tab.dart';
 import 'beranda_tab.dart';
 import 'menu_tab.dart';
+import 'notifications_tab.dart';
 
 class _NavData {
   final IconData icon;
@@ -29,18 +31,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _index = 0;
 
-  Widget _placeholder(String title) => Center(
-        child: Text('Halaman $title menyusul',
-            style: const TextStyle(color: AppColors.textMuted)),
-      );
-
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
       BerandaTab(onOpenNotifications: () => setState(() => _index = 2)),
       MenuTab(onGoHome: () => setState(() => _index = 0)),
-      _placeholder('Notifikasi'),
-      _placeholder('Akun'),
+      NotificationsTab(active: _index == 2),
+      AccountTab(active: _index == 3),
     ];
     final body = IndexedStack(index: _index, children: pages);
 

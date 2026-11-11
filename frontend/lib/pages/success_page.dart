@@ -7,6 +7,7 @@ import '../theme.dart';
 import '../utils/format.dart';
 import '../widgets/common.dart';
 import 'flow_helpers.dart';
+import 'history_page.dart';
 
 class SuccessPage extends StatefulWidget {
   final int reservationId;
@@ -163,11 +164,9 @@ class _SuccessPageState extends State<SuccessPage> {
             children: [
               PrimaryButton(
                 label: 'Lihat Pesanan',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Riwayat pesanan tersedia di tab Akun (segera)')),
-                  );
-                },
+                               onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const HistoryPage()),
+                ),
               ),
               TextButton(
                 onPressed: () => goHome(context),
