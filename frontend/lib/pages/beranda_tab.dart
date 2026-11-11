@@ -413,18 +413,28 @@ class _PaketSliderState extends State<PaketSlider> {
   }
 }
 
-class TableCard extends StatelessWidget {
+/// Kartu meja: seluruh area kartu bisa diklik untuk membuka halaman reservasi
+class TableCard extends StatefulWidget {
   final Map<String, dynamic> table;
   final bool boxed;
-  const TableCard({
-    super.key,
-    required this.table,
-    this.boxed = false,
-  });
+  const TableCard({super.key, required this.table, this.boxed = false});
 
   @override
-  Widget build(BuildContext context) {
-    final content = Row(
+  State<TableCard> createState() => _TableCardState();
+}
+
+class _TableCardState extends State<TableCard> {
+  bool _hover = false;
+
+  void _open() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ReservationPage(table: widget.table)),
+    );
+  }
+
+  Widget _content() {
+    final table = widget.table;
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ClipRRect(
@@ -476,37 +486,117 @@ class TableCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ReservationPage(table: table)),
-                ),
-                style: OutlinedButton.styleFrom(
-                  shape: const StadiumBorder(),
-                  side: const BorderSide(color: AppColors.border, width: 1.4),
-                  foregroundColor: AppColors.brownDark,
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                ),
-                child: const Text('Booking Meja',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-              ),
+              _BookButton(onTap: _open),
             ],
           ),
         ),
       ],
     );
+  }
 
-    if (boxed) {
-      return Container(
-        padding: const EdgeInsets.all(14),
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(widget.boxed ? 24 : 20);
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.border),
+          color: _hover ? AppColors.creamSoft : Colors.white,
+          borderRadius: radius,
+          border: widget.boxed
+              ? Border.all(color: _hover ? AppColors.brown : AppColors.border)
+              : null,
+          boxShadow: widget.boxed && _hover
+              ? [
+                  BoxShadow(
+                    color: AppColors.brown.withAlpha(30),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
         ),
-        child: content,
-      );
-    }
-    return Padding(padding: const EdgeInsets.symmetric(vertical: 16), child: content);
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: radius,
+            onTap: _open,
+            child: Padding(
+              padding: widget.boxed
+                  ? const EdgeInsets.all(14)
+                  : const EdgeInsets.symmetric(vertical: 16, horizontal: 4),
+              child: _content(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tombol Booking Meja: warna berubah halus saat kursor di atasnya (desktop)
+/// atau saat ditekan (layar sentuh)
+class _BookButton extends StatefulWidget {
+  final VoidCallback onTap;
+  const _BookButton({required this.onTap});
+
+  @override
+  State<_BookButton> createState() => _BookButtonState();
+}
+
+class _BookButtonState extends State<_BookButton> {
+  bool _hover = false;
+  bool _pressed = false;
+
+  bool get _active => _hover || _pressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(30),
+        onTap: widget.onTap,
+        onHover: (v) => setState(() => _hover = v),
+        onHighlightChanged: (v) => setState(() => _pressed = v),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+          decoration: BoxDecoration(
+            color: _active ? AppColors.brown : Colors.white,
+            borderRadius: BorderRadius.circular(30),
+            border: Border.all(
+              color: _active ? AppColors.brown : AppColors.border,
+              width: 1.4,
+            ),
+            boxShadow: _active
+                ? [
+                    BoxShadow(
+                      color: AppColors.brown.withAlpha(70),
+                      blurRadius: 12,
+                      offset: const Offset(0, 5),
+                    ),
+                  ]
+                : null,
+          ),
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 200),
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+              color: _active ? Colors.white : AppColors.brownDark,
+            ),
+            child: const Text('Booking Meja'),
+          ),
+        ),
+      ),
+    );
   }
 }
 
