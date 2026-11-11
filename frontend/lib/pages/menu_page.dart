@@ -4,6 +4,7 @@ import '../models/cart.dart';
 import '../theme.dart';
 import '../utils/format.dart';
 import '../widgets/menu_browser.dart';
+import 'checkout_page.dart';
 
 class MenuPage extends StatefulWidget {
   final BookingDraft draft;
@@ -28,9 +29,10 @@ class _MenuPageState extends State<MenuPage> {
   }
 
   void _viewOrder() {
-    // Halaman checkout dibuat di langkah berikutnya
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Pesanan ${_cart.count} item, total ${rupiah(_cart.total)}')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CheckoutPage(draft: widget.draft, cart: _cart),
+      ),
     );
   }
 
@@ -121,10 +123,9 @@ class _MenuPageState extends State<MenuPage> {
                     vipNote: vip ? 'Meja VIP: minimal order ${rupiah(_vipMinOrder)}' : null,
                   ),
                 ),
+                // Bar muncul setelah ada menu di keranjang
                 CartBar(
                   cart: _cart,
-                  emptyLabel: vip ? 'Minimal order ${rupiah(_vipMinOrder)}' : '',
-                  emptyAction: vip ? '' : 'Lewati',
                   minOrder: vip ? _vipMinOrder : 0,
                   onTap: _viewOrder,
                 ),
