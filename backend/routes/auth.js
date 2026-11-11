@@ -73,6 +73,11 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     await pool.query('UPDATE otp_codes SET used = TRUE WHERE id = $1', [otp.rows[0].id]);
+
+    // Cek apakah ini verifikasi pertama (akun baru)
+    const before = await pool.query('SELECT is_verified FROM users WHERE phone = $1', [phone]);
+    const firstTime = before.rows.length > 0 && !before.rows[0].is_verified;
+
     const userResult = await pool.query(
       'UPDATE users SET is_verified = TRUE WHERE phone = $1 RETURNING *',
       [phone]
@@ -82,6 +87,18 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     const user = userResult.rows[0];
+
+    if (firstTime) {
+      await pool.query(
+        'INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)',
+        [user.id, 'Selamat datang!', 'Akun Anda sudah aktif. Yuk pilih meja dan reservasi sekarang.']
+      );
+    }
+    await pool.query(
+      'INSERT INTO notifications (user_id, title, message) VALUES ($1, $2, $3)',
+      [user.id, 'Login berhasil', 'Anda berhasil masuk ke akun Kenneth Resto dari perangkat ini.']
+    );
+
     const token = jwt.sign({ id: user.id, phone: user.phone }, process.env.JWT_SECRET, { expiresIn: '7d' });
     res.json({ message: 'Verifikasi berhasil', token, user });
   } catch (err) {
