@@ -25,6 +25,14 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Simpan data user terbaru (misalnya setelah profil diubah)
+  Future<void> updateUser(Map<String, dynamic> u) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user', jsonEncode(u));
+    user = u;
+    notifyListeners();
+  }
+
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');

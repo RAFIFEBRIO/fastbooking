@@ -58,6 +58,18 @@ class ApiService {
       Map<String, dynamic>.from(
           await post('/auth/verify-otp', {'phone': phone, 'code': code}));
 
+  // ---- Profil ----
+  static Future<Map<String, dynamic>> updateProfile({
+    required String fullName,
+    String? email,
+    String? address,
+  }) async =>
+      Map<String, dynamic>.from(await put('/users/me', {
+        'full_name': fullName,
+        'email': email ?? '',
+        'address': address ?? '',
+      }));
+
   // ---- Meja ----
   static Future<List<dynamic>> getTables({String? area}) async {
     final path = area == null ? '/tables' : '/tables?area=${Uri.encodeQueryComponent(area)}';
@@ -96,6 +108,9 @@ class ApiService {
         'items': items,
       }));
 
+  static Future<List<dynamic>> getReservations() async =>
+      (await get('/reservations')) as List<dynamic>;
+
   static Future<Map<String, dynamic>> getReservation(int id) async =>
       Map<String, dynamic>.from(await get('/reservations/$id'));
 
@@ -111,4 +126,19 @@ class ApiService {
 
   static Future<Map<String, dynamic>> confirmPayment(int paymentId) async =>
       Map<String, dynamic>.from(await post('/payments/$paymentId/confirm', {}));
+
+  // ---- Notifikasi ----
+  static Future<List<Map<String, dynamic>>> getNotifications() async {
+    final data = await get('/notifications');
+    final list = (data['notifications'] as List<dynamic>);
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  static Future<void> markAllNotificationsRead() async {
+    await patch('/notifications/read-all');
+  }
+
+  static Future<void> markNotificationRead(int id) async {
+    await patch('/notifications/$id/read');
+  }
 }
