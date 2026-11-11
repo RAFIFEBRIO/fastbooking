@@ -10,9 +10,12 @@ import 'flow_helpers.dart';
 import 'history_page.dart';
 
 class SuccessPage extends StatefulWidget {
-  final int reservationId;
+  /// Isi salah satu: reservationId (reservasi meja) atau orderId (datang langsung)
+  final int? reservationId;
+  final int? orderId;
   final String method; // kosong jika tanpa pembayaran
-  const SuccessPage({super.key, required this.reservationId, this.method = ''});
+  const SuccessPage({super.key, this.reservationId, this.orderId, this.method = ''})
+      : assert(reservationId != null || orderId != null);
 
   @override
   State<SuccessPage> createState() => _SuccessPageState();
@@ -21,22 +24,51 @@ class SuccessPage extends StatefulWidget {
 class _SuccessPageState extends State<SuccessPage> {
   late Future<Map<String, dynamic>> _future;
 
+  bool get _isOrder => widget.orderId != null;
+
   @override
   void initState() {
     super.initState();
-    _future = ApiService.getReservation(widget.reservationId);
+    _future = _load();
   }
 
-  void _retry() => setState(() => _future = ApiService.getReservation(widget.reservationId));
+  Future<Map<String, dynamic>> _load() => _isOrder
+      ? ApiService.getOrder(widget.orderId!)
+      : ApiService.getReservation(widget.reservationId!);
+
+  void _retry() => setState(() => _future = _load());
+
+  String _hm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}.${d.minute.toString().padLeft(2, '0')}';
 
   Widget _body(Map<String, dynamic> res) {
     final paid = toNum(res['total_amount']) > 0;
-    final d = DateTime.tryParse('${res['reservation_date']}') ?? DateTime.now();
-    final time = '${res['reservation_time']}'.replaceAll(':', '.');
-    final detail =
-        '${res['area']} · ${dayShort(d)}, ${d.day} ${monthShort(d)} · $time · ${res['guest_count']} tamu';
     final items = List<dynamic>.from(res['items'] as List);
-    final code = '${res['booking_code']}';
+
+    late final String place;
+    late final String detail;
+    late final String code;
+    late final String hint;
+    late final String codeLabel;
+
+    if (_isOrder) {
+      final label = '${res['table_label'] ?? ''}'.trim();
+      final c = (DateTime.tryParse('${res['created_at']}') ?? DateTime.now()).toLocal();
+      place = label.isEmpty ? 'Datang langsung' : 'Meja $label';
+      detail = 'Makan di tempat · ${dayShort(c)}, ${c.day} ${monthShort(c)} · ${_hm(c)}';
+      code = '${res['order_code']}';
+      hint = 'Tunjukkan QR ini kepada pelayan untuk memproses pesanan Anda.';
+      codeLabel = 'KODE PESANAN';
+    } else {
+      final d = DateTime.tryParse('${res['reservation_date']}') ?? DateTime.now();
+      final time = '${res['reservation_time']}'.replaceAll(':', '.');
+      place = '${res['table_name']}';
+      detail =
+          '${res['area']} · ${dayShort(d)}, ${d.day} ${monthShort(d)} · $time · ${res['guest_count']} tamu';
+      code = '${res['booking_code']}';
+      hint = 'Tunjukkan QR ini kepada pelayan saat tiba.';
+      codeLabel = 'KODE BOOKING';
+    }
 
     return Column(
       children: [
@@ -68,9 +100,9 @@ class _SuccessPageState extends State<SuccessPage> {
                 Text(paid ? 'Pembayaran Berhasil' : 'Reservasi Berhasil',
                     textAlign: TextAlign.center, style: heading(30)),
                 const SizedBox(height: 6),
-                const Text('Tunjukkan QR ini kepada pelayan saat tiba.',
+                Text(hint,
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textMuted)),
+                    style: const TextStyle(color: AppColors.textMuted)),
                 const SizedBox(height: 22),
                 Container(
                   width: double.infinity,
@@ -109,13 +141,13 @@ class _SuccessPageState extends State<SuccessPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      Text('${res['table_name']}', style: heading(34)),
+                      Text(place, textAlign: TextAlign.center, style: heading(34)),
                       const SizedBox(height: 4),
                       Text(detail,
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: AppColors.textMuted)),
                       const SizedBox(height: 12),
-                      Text('KODE BOOKING · $code',
+                      Text('$codeLabel · $code',
                           style: const TextStyle(
                               letterSpacing: 1.4,
                               fontSize: 13,
@@ -133,8 +165,7 @@ class _SuccessPageState extends State<SuccessPage> {
                     ],
                   ),
                   const SizedBox(height: 10),
-                  for (final raw in items)
-                    _itemRow(Map<String, dynamic>.from(raw as Map)),
+                  for (final raw in items) _itemRow(Map<String, dynamic>.from(raw as Map)),
                   if (widget.method.isNotEmpty) ...[
                     const Divider(height: 24, color: AppColors.border),
                     Row(
@@ -164,7 +195,7 @@ class _SuccessPageState extends State<SuccessPage> {
             children: [
               PrimaryButton(
                 label: 'Lihat Pesanan',
-                               onPressed: () => Navigator.of(context).push(
+                onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const HistoryPage()),
                 ),
               ),
