@@ -10,14 +10,19 @@ import 'flow_helpers.dart';
 import 'success_page.dart';
 
 class PaymentPage extends StatefulWidget {
-  final Map<String, dynamic> reservation;
+  /// Data reservasi atau pesanan dari server
+  final Map<String, dynamic> target;
   final Map<String, dynamic> payment;
   final DateTime deadline;
+  final bool isOrder;
+  final VoidCallback? onPaid;
   const PaymentPage({
     super.key,
-    required this.reservation,
+    required this.target,
     required this.payment,
     required this.deadline,
+    this.isOrder = false,
+    this.onPaid,
   });
 
   @override
@@ -33,8 +38,16 @@ class _PaymentPageState extends State<PaymentPage> {
 
   String get _method => '${widget.payment['method']}';
   double get _amount => toNum(widget.payment['amount']);
-  String get _code => '${widget.reservation['booking_code']}';
-  String get _tableName => '${widget.reservation['table_name']}';
+  String get _code =>
+      '${widget.payment['code'] ?? widget.payment['booking_code'] ?? ''}';
+
+  String get _place {
+    if (widget.isOrder) {
+      final l = '${widget.target['table_label'] ?? ''}'.trim();
+      return l.isEmpty ? 'Datang langsung' : 'Meja $l';
+    }
+    return '${widget.target['table_name']}';
+  }
 
   @override
   void initState() {
@@ -55,7 +68,14 @@ class _PaymentPageState extends State<PaymentPage> {
     setState(() => _left = left < 0 ? 0 : left);
     if (left <= 0) {
       _timer?.cancel();
-      if (ModalRoute.of(context)?.isCurrent ?? false) showExpiredAndGoHome(context);
+      if (ModalRoute.of(context)?.isCurrent ?? false) {
+        showExpiredAndGoHome(
+          context,
+          message: widget.isOrder
+              ? 'Pesanan dibatalkan. Silakan buat pesanan baru.'
+              : 'Reservasi dibatalkan. Silakan pilih meja dan reservasi ulang.',
+        );
+      }
     }
   }
 
@@ -64,11 +84,14 @@ class _PaymentPageState extends State<PaymentPage> {
     setState(() => _busy = true);
     try {
       await ApiService.confirmPayment((widget.payment['id'] as num).toInt());
+      widget.onPaid?.call();
       if (!mounted) return;
+      final id = (widget.target['id'] as num).toInt();
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => SuccessPage(
-            reservationId: (widget.reservation['id'] as num).toInt(),
+            reservationId: widget.isOrder ? null : id,
+            orderId: widget.isOrder ? id : null,
             method: methodLabel(_method),
           ),
         ),
@@ -284,7 +307,7 @@ class _PaymentPageState extends State<PaymentPage> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Kenneth Resto · $_tableName · No. pesanan $_code',
+                          'Kenneth Resto · $_place · No. pesanan $_code',
                           textAlign: TextAlign.center,
                           style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
                         ),

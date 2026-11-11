@@ -25,7 +25,8 @@ const _methods = [
 ];
 
 class CheckoutPage extends StatefulWidget {
-  final BookingDraft draft;
+  /// Data reservasi. Kosong (null) berarti pesanan datang langsung.
+  final BookingDraft? draft;
   final CartController cart;
   const CheckoutPage({super.key, required this.draft, required this.cart});
 
@@ -38,7 +39,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   static const double _vipMinOrder = 500000;
   static const int _holdSeconds = 15 * 60;
 
-  // Reservasi di server, baru dibuat saat tombol bayar ditekan
+  // Reservasi atau pesanan di server, baru dibuat saat tombol bayar ditekan
   Map<String, dynamic>? _res;
   bool _busy = false;
   bool _leaving = false;
@@ -46,10 +47,12 @@ class _CheckoutPageState extends State<CheckoutPage> {
   late DateTime _deadline;
   int _left = _holdSeconds;
   Timer? _timer;
+  final _tableCtl = TextEditingController();
 
-  BookingDraft get _d => widget.draft;
+  BookingDraft? get _d => widget.draft;
+  bool get _walkIn => _d == null;
   CartController get _cart => widget.cart;
-  bool get _isVip => '${_d.table['area']}' == 'VIP';
+  bool get _isVip => !_walkIn && '${_d!.table['area']}' == 'VIP';
   bool get _noOrder => _cart.isEmpty;
   double get _subtotal => _cart.total;
   double get _fee => (_subtotal * _feeRate).roundToDouble();
@@ -68,6 +71,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
   void dispose() {
     _cart.removeListener(_onCartChanged);
     _timer?.cancel();
+    _tableCtl.dispose();
     super.dispose();
   }
 
@@ -90,41 +94,70 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   Future<void> _expire() async {
-    await _cancelReservation();
-    if (mounted) await showExpiredAndGoHome(context);
+    await _cancelOnServer();
+    if (!mounted) return;
+    await showExpiredAndGoHome(
+      context,
+      message: _walkIn
+          ? 'Pesanan dibatalkan. Silakan buat pesanan baru.'
+          : 'Reservasi dibatalkan. Silakan pilih meja dan reservasi ulang.',
+    );
   }
 
-  Future<void> _cancelReservation() async {
+  Future<void> _cancelOnServer() async {
     final id = _res?['id'];
     _res = null;
     if (id != null) {
       try {
-        await ApiService.cancelReservation((id as num).toInt());
+        final n = (id as num).toInt();
+        if (_walkIn) {
+          await ApiService.cancelOrder(n);
+        } else {
+          await ApiService.cancelReservation(n);
+        }
       } catch (_) {}
     }
   }
 
-  /// Ubah isi keranjang. Reservasi yang sudah terlanjur dibuat dibatalkan
+  /// Ubah isi pesanan. Data yang sudah terlanjur dibuat di server dibatalkan
   /// dan akan dibuat ulang saat tombol bayar ditekan lagi.
   void _edit(VoidCallback change) {
     if (_res != null) {
-      _cancelReservation();
+      _cancelOnServer();
       _deadline = DateTime.now().add(const Duration(seconds: _holdSeconds));
       _left = _holdSeconds;
     }
     change();
   }
 
-  /// Keluar dari checkout: batalkan reservasi yang belum dibayar
+  /// Keluar dari checkout: batalkan yang belum dibayar
   Future<void> _leave() async {
     if (_leaving) return;
     _leaving = true;
-    await _cancelReservation();
+    await _cancelOnServer();
     if (mounted) Navigator.of(context).pop();
   }
 
+  Future<Map<String, dynamic>> _createOnServer() {
+    final d = _d;
+    if (d == null) {
+      return ApiService.createOrder(
+        tableLabel: _tableCtl.text.trim(),
+        items: _cart.toApiItems(),
+      );
+    }
+    return ApiService.createReservation(
+      tableId: (d.table['id'] as num).toInt(),
+      date: d.dateKey,
+      time: d.time,
+      guests: d.guests,
+      notes: d.notes,
+      items: _cart.toApiItems(),
+    );
+  }
+
   Future<void> _pay() async {
-    // Reservasi wajib disertai pesanan menu: kembali ke halaman menu
+    // Wajib ada pesanan menu: kembali ke halaman menu
     if (_noOrder) {
       Navigator.of(context).maybePop();
       return;
@@ -136,17 +169,15 @@ class _CheckoutPageState extends State<CheckoutPage> {
       if (_res != null) {
         res = _res!;
       } else {
-        res = await ApiService.createReservation(
-          tableId: (_d.table['id'] as num).toInt(),
-          date: _d.dateKey,
-          time: _d.time,
-          guests: _d.guests,
-          notes: _d.notes,
-          items: _cart.toApiItems(),
-        );
+        res = await _createOnServer();
         if (!mounted) {
           try {
-            await ApiService.cancelReservation((res['id'] as num).toInt());
+            final n = (res['id'] as num).toInt();
+            if (_walkIn) {
+              await ApiService.cancelOrder(n);
+            } else {
+              await ApiService.cancelReservation(n);
+            }
           } catch (_) {}
           return;
         }
@@ -158,12 +189,22 @@ class _CheckoutPageState extends State<CheckoutPage> {
         });
       }
 
-      final payment = await ApiService.createPayment((res['id'] as num).toInt(), _method);
+      final id = (res['id'] as num).toInt();
+      final payment = await ApiService.createPayment(
+        reservationId: _walkIn ? null : id,
+        orderId: _walkIn ? id : null,
+        method: _method,
+      );
       if (!mounted) return;
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) =>
-              PaymentPage(reservation: res, payment: payment, deadline: _deadline),
+          builder: (_) => PaymentPage(
+            target: res,
+            payment: payment,
+            deadline: _deadline,
+            isOrder: _walkIn,
+            onPaid: () => _cart.clear(),
+          ),
         ),
       );
     } on ApiException catch (e) {
@@ -178,6 +219,21 @@ class _CheckoutPageState extends State<CheckoutPage> {
   }
 
   // ---------- Tampilan ----------
+
+  String get _headLabel => _noOrder
+      ? (_walkIn ? 'Pesanan makan di tempat' : 'Reservasi meja')
+      : 'Total pembayaran';
+
+  String get _headTitle => _walkIn ? 'Datang langsung' : '${_d!.table['name']}';
+
+  String get _headSub {
+    if (_walkIn) {
+      final l = _tableCtl.text.trim();
+      return l.isEmpty ? 'Makan di tempat' : 'Meja $l';
+    }
+    final d = _d!;
+    return _noOrder ? '${d.table['area']} · ${d.label}' : '${d.table['name']} · ${d.label}';
+  }
 
   Widget _headerBg() {
     Widget ring(double s) => Container(
@@ -379,12 +435,14 @@ class _CheckoutPageState extends State<CheckoutPage> {
           ),
           const SizedBox(height: 10),
           if (_noOrder)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
-                'Reservasi meja wajib disertai pesanan menu. '
-                'Tekan Pesan Makanan untuk memilih menu.',
-                style: TextStyle(color: AppColors.textMuted, height: 1.4),
+                _walkIn
+                    ? 'Belum ada menu di pesanan. Tekan Pesan Makanan untuk memilih menu.'
+                    : 'Reservasi meja wajib disertai pesanan menu. '
+                        'Tekan Pesan Makanan untuk memilih menu.',
+                style: const TextStyle(color: AppColors.textMuted, height: 1.4),
               ),
             )
           else ...[
@@ -419,6 +477,50 @@ class _CheckoutPageState extends State<CheckoutPage> {
               'Kurang ${rupiah(_vipMinOrder - _subtotal)}, tekan Ubah untuk menambah menu.',
               style: const TextStyle(
                   color: AppColors.brown, fontWeight: FontWeight.w600, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableField() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 26, 24, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text('Nomor meja', style: heading(24)),
+              const SizedBox(width: 10),
+              const Text('Opsional', style: TextStyle(color: AppColors.textMuted)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _tableCtl,
+            maxLength: 20,
+            textCapitalization: TextCapitalization.characters,
+            onChanged: (_) {
+              if (_res != null) _edit(() {});
+              setState(() {});
+            },
+            decoration: InputDecoration(
+              counterText: '',
+              hintText: 'Contoh: I4 (boleh dikosongkan)',
+              hintStyle: const TextStyle(color: Color(0xFF9C8F84)),
+              contentPadding: const EdgeInsets.all(18),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(22),
+                borderSide: const BorderSide(color: AppColors.brown),
+              ),
             ),
           ),
         ],
@@ -505,7 +607,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
 
   Widget _content() {
     final top = MediaQuery.of(context).padding.top;
-    final table = _d.table;
 
     return Stack(
       children: [
@@ -535,13 +636,13 @@ class _CheckoutPageState extends State<CheckoutPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_noOrder ? 'Reservasi meja' : 'Total pembayaran',
+                  Text(_headLabel,
                       style: const TextStyle(color: Colors.white70, fontSize: 15)),
                   const SizedBox(height: 2),
                   if (_noOrder)
-                    Text('${table['name']}',
+                    Text(_headTitle,
                         style: const TextStyle(
-                            color: Colors.white, fontSize: 44, fontWeight: FontWeight.w800))
+                            color: Colors.white, fontSize: 40, fontWeight: FontWeight.w800))
                   else
                     Text.rich(
                       TextSpan(
@@ -559,12 +660,8 @@ class _CheckoutPageState extends State<CheckoutPage> {
                       ),
                     ),
                   const SizedBox(height: 4),
-                  Text(
-                    _noOrder
-                        ? '${table['area']} · ${_d.label}'
-                        : '${table['name']} · ${_d.label}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
+                  Text(_headSub,
+                      style: const TextStyle(color: Colors.white70, fontSize: 14)),
                   if (!_noOrder) ...[
                     const SizedBox(height: 12),
                     Container(
@@ -594,6 +691,7 @@ class _CheckoutPageState extends State<CheckoutPage> {
               child: _itemsCard(),
             ),
             if (_belowMin) _vipWarning(),
+            if (_walkIn && !_noOrder) _tableField(),
             if (!_noOrder) ...[
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 26, 24, 14),
