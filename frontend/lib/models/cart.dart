@@ -34,8 +34,37 @@ class CartController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void increment(CartLine line) {
+    line.qty++;
+    notifyListeners();
+  }
+
+  /// Kurangi jumlah, kalau tinggal 1 maka baris dihapus
+  void decrement(CartLine line) {
+    if (line.qty <= 1) {
+      lines.remove(line);
+    } else {
+      line.qty--;
+    }
+    notifyListeners();
+  }
+
+  void remove(CartLine line) {
+    lines.remove(line);
+    notifyListeners();
+  }
+
   void clear() {
     lines.clear();
     notifyListeners();
   }
+
+  /// Format untuk dikirim ke backend
+  List<Map<String, dynamic>> toApiItems() => lines
+      .map((l) => {
+            'menu_item_id': l.id,
+            'quantity': l.qty,
+            if (l.note.isNotEmpty) 'note': l.note,
+          })
+      .toList();
 }

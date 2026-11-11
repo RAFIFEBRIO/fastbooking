@@ -43,6 +43,9 @@ class ApiService {
   static Future<dynamic> put(String path, Map<String, dynamic> body) =>
       _send(() => http.put(_uri(path), headers: _headers, body: jsonEncode(body)));
 
+  static Future<dynamic> patch(String path, [Map<String, dynamic>? body]) =>
+      _send(() => http.patch(_uri(path), headers: _headers, body: jsonEncode(body ?? {})));
+
   // ---- Auth ----
   static Future<Map<String, dynamic>> register(String name, String phone) async =>
       Map<String, dynamic>.from(
@@ -74,4 +77,38 @@ class ApiService {
         category == null ? '/menu' : '/menu?category=${Uri.encodeQueryComponent(category)}';
     return (await get(path)) as List<dynamic>;
   }
+
+  // ---- Reservasi ----
+  static Future<Map<String, dynamic>> createReservation({
+    required int tableId,
+    required String date,
+    required String time,
+    required int guests,
+    String? notes,
+    required List<Map<String, dynamic>> items,
+  }) async =>
+      Map<String, dynamic>.from(await post('/reservations', {
+        'table_id': tableId,
+        'reservation_date': date,
+        'reservation_time': time,
+        'guest_count': guests,
+        if (notes != null && notes.isNotEmpty) 'notes': notes,
+        'items': items,
+      }));
+
+  static Future<Map<String, dynamic>> getReservation(int id) async =>
+      Map<String, dynamic>.from(await get('/reservations/$id'));
+
+  static Future<Map<String, dynamic>> cancelReservation(int id) async =>
+      Map<String, dynamic>.from(await patch('/reservations/$id/cancel'));
+
+  // ---- Pembayaran ----
+  static Future<Map<String, dynamic>> createPayment(int reservationId, String method) async =>
+      Map<String, dynamic>.from(await post('/payments', {
+        'reservation_id': reservationId,
+        'method': method,
+      }));
+
+  static Future<Map<String, dynamic>> confirmPayment(int paymentId) async =>
+      Map<String, dynamic>.from(await post('/payments/$paymentId/confirm', {}));
 }
