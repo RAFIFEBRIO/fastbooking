@@ -87,7 +87,9 @@ router.post('/', authRequired, async (req, res) => {
   const guest_count = parseInt(req.body.guest_count, 10);
   const items = Array.isArray(req.body.items) ? req.body.items : [];
 
-  if (!table_id || !guest_count || guest_count < 1) {
+  if (!table_id || !guest_count || guest_count < 1) {  if (items.length === 0) {
+    return res.status(400).json({ message: 'Reservasi meja wajib disertai pesanan menu' });
+  }
     return res.status(400).json({ message: 'table_id dan guest_count wajib diisi' });
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(reservation_date || '') || !/^\d{2}:\d{2}$/.test(reservation_time || '')) {
